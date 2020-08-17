@@ -47,6 +47,7 @@ pub fn hash2_3_scal(hk: Scalar, cc: RistrettoPoint, rmr: RistrettoPoint, st: Str
     Scalar::from_hash(has)
 }
 
+// Prove that a pedersen commitment pedu opens to rpu / rhou using randomness krh/krm
 pub fn ped_proof(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint), pedu: RistrettoPoint, rpu:Scalar, rhou:Scalar, krh:Scalar, krm:Scalar) -> (RistrettoPoint, Scalar, Scalar)
 {
 
@@ -59,6 +60,7 @@ pub fn ped_proof(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint), pedu: Ristrett
 
 }
 
+// Verify a pedersen proof
 pub fn verif_schnorr(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint),pedu:RistrettoPoint, d:(RistrettoPoint, Scalar, Scalar)) -> bool
 {
 
@@ -68,6 +70,7 @@ pub fn verif_schnorr(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint),pedu:Ristre
 
 }
 
+// User U generates a pedersen commitment to his random part, and prove that he knows an opening
 pub fn first_flow(crs:(RistrettoPoint,RistrettoPoint), hk: Scalar) -> (Scalar, Scalar, RistrettoPoint, (RistrettoPoint,Scalar,Scalar))
 {
     let mut rng = OsRng::new().unwrap();
@@ -88,6 +91,7 @@ pub fn first_flow(crs:(RistrettoPoint,RistrettoPoint), hk: Scalar) -> (Scalar, S
 
 }
 
+// Server sends its randomness
 pub fn second_flow() -> Scalar {
     let mut rng = OsRng::new().unwrap();
     let rca = Scalar::random(&mut rng);
@@ -96,6 +100,7 @@ pub fn second_flow() -> Scalar {
 }
 
 
+// User generates the secret key with it's randomness and an extraction from the server ones, and proves then that pk does use the server randomness and the randomness commited initially
 pub fn third_flow(hk:Scalar, crs:(RistrettoPoint,RistrettoPoint),rpu: Scalar, rhou: Scalar, rca:Scalar, cc: RistrettoPoint) -> (Scalar,RistrettoPoint,(RistrettoPoint,Scalar,Scalar)) {
     let sk = rpu + hash_3_scal(hk,Scalar::zero(),rca,"ext".to_string());
     let pk = sk*crs.0;
