@@ -19,5 +19,5 @@ To test the library simply clone it, and run cargo test
 
 ## Todo
 - [x] Discrete Logarithm example
-- [] RSA example
-- [] Move away from academic code
+- [ ] RSA example
+- [ ] Move away from academic code
