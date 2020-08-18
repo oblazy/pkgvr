@@ -25,10 +25,10 @@ pub fn crs_gen()
 
 // Hash
 
-pub fn hash_3_scal(hk: Scalar, bit: Scalar, ru: Scalar, st: String) -> Scalar {
+pub fn hash_3_scal(hk: Scalar, ru: Scalar, st: String)
+        -> Scalar {
     let mut has = Sha3_512::new();
     has.input(hk.to_bytes());
-    has.input(bit.to_bytes());
     has.input(ru.to_bytes());
     has.input(st.as_bytes());
 
@@ -36,7 +36,8 @@ pub fn hash_3_scal(hk: Scalar, bit: Scalar, ru: Scalar, st: String) -> Scalar {
     Scalar::from_hash(has)
 }
 
-pub fn hash2_3_scal(hk: Scalar, cc: RistrettoPoint, rmr: RistrettoPoint, st: String) -> Scalar {
+pub fn hash2_3_scal(hk: Scalar, cc: RistrettoPoint, rmr: RistrettoPoint, st: String)
+        -> Scalar {
     let mut has = Sha3_512::new();
     has.input(hk.to_bytes());
     has.input(cc.compress().to_bytes());
@@ -48,69 +49,75 @@ pub fn hash2_3_scal(hk: Scalar, cc: RistrettoPoint, rmr: RistrettoPoint, st: Str
 }
 
 // Prove that a pedersen commitment pedu opens to rpu / rhou using randomness krh/krm
-pub fn ped_proof(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint), pedu: RistrettoPoint, rpu:Scalar, rhou:Scalar, krh:Scalar, krm:Scalar) -> (RistrettoPoint, Scalar, Scalar)
+pub fn ped_proof(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint), pedu: RistrettoPoint, rpu:Scalar, rhou:Scalar, krh:Scalar, krm:Scalar)
+        -> (RistrettoPoint, Scalar, Scalar)
 {
-
     let rm = krm*crs.0;
     let rr = krh*crs.1;
-
     let e = hash2_3_scal(hk, pedu, rm+ rr,"ped".to_string());
+
 
     (rm + rr, krm+e*rpu,krh+e*rhou)
 
 }
 
 // Verify a pedersen proof
-pub fn verif_schnorr(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint),pedu:RistrettoPoint, d:(RistrettoPoint, Scalar, Scalar)) -> bool
+pub fn verif_schnorr(hk: Scalar, crs:(RistrettoPoint,RistrettoPoint),pedu:RistrettoPoint, d:(RistrettoPoint, Scalar, Scalar))
+        -> bool
 {
-
     let e = hash2_3_scal(hk, pedu, d.0,"ped".to_string());
+
 
     d.1*crs.0 + d.2*crs.1 == d.0 + e *pedu
 
 }
 
 // User U generates a pedersen commitment to his random part, and prove that he knows an opening
-pub fn first_flow(crs:(RistrettoPoint,RistrettoPoint), hk: Scalar) -> (Scalar, Scalar, RistrettoPoint, (RistrettoPoint,Scalar,Scalar))
+pub fn first_flow(crs:(RistrettoPoint,RistrettoPoint), hk: Scalar)
+        -> (Scalar, Scalar, RistrettoPoint, (RistrettoPoint,Scalar,Scalar))
 {
     let mut rng = OsRng::new().unwrap();
     let ru = Scalar::random(&mut rng);
 
-    let rpu = hash_3_scal(hk, Scalar::zero(), ru,"ru".to_string());
-    let rhou = hash_3_scal(hk, Scalar::one(), ru,"rhou".to_string());
+    let rpu = hash_3_scal(hk,  ru, "0|ru".to_string());
+    let rhou = hash_3_scal(hk, ru, "1|rhou".to_string());
 
     // Randomness for schnorr
-    let krh = hash_3_scal(hk, Scalar::one()+Scalar::one(), ru,"krh".to_string());
-    let krm = hash_3_scal(hk, Scalar::one()+Scalar::one(), ru,"krm".to_string());
-
+    let krh = hash_3_scal(hk, ru,"2|krh".to_string());
+    let krm = hash_3_scal(hk, ru,"3|krm".to_string());
 
     let pedu = rpu*crs.0 + rhou * crs.1;
     let d = ped_proof(hk, crs, pedu, rpu, rhou, krh, krm);
+
 
     (rpu, rhou, pedu, d)
 
 }
 
 // Server sends its randomness
-pub fn second_flow() -> Scalar {
+pub fn second_flow()
+        -> Scalar {
     let mut rng = OsRng::new().unwrap();
     let rca = Scalar::random(&mut rng);
+
 
     rca
 }
 
 
 // User generates the secret key with it's randomness and an extraction from the server ones, and proves then that pk does use the server randomness and the randomness commited initially
-pub fn third_flow(hk:Scalar, crs:(RistrettoPoint,RistrettoPoint),rpu: Scalar, rhou: Scalar, rca:Scalar, cc: RistrettoPoint) -> (Scalar,RistrettoPoint,(RistrettoPoint,Scalar,Scalar)) {
-    let sk = rpu + hash_3_scal(hk,Scalar::zero(),rca,"ext".to_string());
+pub fn third_flow(hk:Scalar, crs:(RistrettoPoint,RistrettoPoint),rpu: Scalar, rhou: Scalar, rca:Scalar, cc: RistrettoPoint)
+        -> (Scalar,RistrettoPoint,(RistrettoPoint,Scalar,Scalar)) {
+    let rc = hash_3_scal(hk,rca,"0|ext".to_string());
+    let sk = rpu + rc;
     let pk = sk*crs.0;
 
 // Generate the proof randomness
-    let spu = hash_3_scal(hk, Scalar::one()+Scalar::one(), sk,"srca".to_string());
-    let spu2 = hash_3_scal(hk, Scalar::one()+Scalar::one()+Scalar::one(), sk,"srhou".to_string());
+    let spu = hash_3_scal(hk, sk,"1|srca".to_string());
+    let spu2 = hash_3_scal(hk, sk,"2|srhou".to_string());
 
     let pedfake = pk - cc;
-    let d = ped_proof(hk, crs, pedfake, hash_3_scal(hk,Scalar::zero(),rca,"ext".to_string()), -rhou, spu2, spu);
+    let d = ped_proof(hk, crs, pedfake, rc, -rhou, spu2, spu);
 
 
     (sk,pk, d)
